@@ -13,7 +13,7 @@
     "url": "git+https://github.com/darjss/html-thing.git"
   },
   "bin": {
-    "html-thing": "./dist/cli.mjs"
+    "html-thing": "dist/cli.mjs"
   },
   "files": [
     "dist"
