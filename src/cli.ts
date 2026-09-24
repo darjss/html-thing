@@ -4,15 +4,16 @@ import { resolve } from "node:path";
 import { host, type UploadOptions } from "./index.ts";
 
 function printHelp(): void {
-  console.log(`html-thing — one-command HTML hosting on Cloudflare R2
+  console.log(`html-thing — one-command file hosting on Cloudflare R2
 
 Usage:
-  html-thing <file.html>              Upload and get a public URL
-  html-thing <file.html> --name foo   Use a custom slug
-  html-thing <file.html> --bucket x   Use a different R2 bucket
-  html-thing <file.html> --domain x   Use a different custom domain
+  html-thing <file>                   Upload and get a public URL
+  html-thing <file> --name foo        Use a custom slug (overwrites if taken)
+  html-thing <file> --bucket x        Use a different R2 bucket
+  html-thing <file> --domain x        Use a different custom domain
 
-The file is served at https://html.darjs.dev/<slug> with content-type text/html.
+The file is served at https://html.darjs.dev/<slug>. Content type comes from
+the file extension (html, pdf, images, video, text, json, zip, ...).
 Requires wrangler authenticated (\`wrangler login\`).`);
 }
 

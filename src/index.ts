@@ -1,13 +1,38 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { extname, join } from "node:path";
 
 export const DEFAULT_BUCKET = "html-thing";
 export const DEFAULT_DOMAIN = "html.darjs.dev";
 export const DEFAULT_PARENT_DOMAIN = "darjs.dev";
 export const SLUG_LENGTH = 6;
 const SLUG_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+const CONTENT_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".htm": "text/html; charset=utf-8",
+  ".pdf": "application/pdf",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".mp4": "video/mp4",
+  ".txt": "text/plain; charset=utf-8",
+  ".md": "text/markdown; charset=utf-8",
+  ".json": "application/json",
+  ".xml": "application/xml",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".zip": "application/zip",
+};
+
+/** Content type for a file, from its extension. */
+export function contentTypeFor(filePath: string): string {
+  return CONTENT_TYPES[extname(filePath).toLowerCase()] ?? "application/octet-stream";
+}
 
 export interface UploadOptions {
   bucket?: string;
@@ -124,7 +149,7 @@ export function ensureCustomDomain(bucket: string, domain: string, parentDomain:
   wrangler("r2", "bucket", "domain", "add", bucket, `--domain=${domain}`, `--zone-id=${zoneId}`);
 }
 
-/** Upload a file to R2 with text/html content type. */
+/** Upload a file to R2, overwriting whatever sits at that key. */
 export function upload(bucket: string, slug: string, filePath: string): void {
   wrangler(
     "r2",
@@ -132,7 +157,7 @@ export function upload(bucket: string, slug: string, filePath: string): void {
     "put",
     `${bucket}/${slug}`,
     `--file=${filePath}`,
-    "--content-type=text/html; charset=utf-8",
+    `--content-type=${contentTypeFor(filePath)}`,
     "--remote",
   );
 }
@@ -146,10 +171,9 @@ export async function host(filePath: string, options: UploadOptions = {}): Promi
   ensureBucket(bucket);
   ensureCustomDomain(bucket, domain, parentDomain);
 
+  // An explicit slug overwrites whatever is already there, so a stable URL
+  // always serves the latest file. Random slugs stay collision-checked.
   const slug = options.slug ?? freeSlug(bucket, options.slugLength ?? SLUG_LENGTH);
-  if (!slugIsFree(bucket, slug)) {
-    throw new Error(`Slug "${slug}" is already taken. Choose another with --name.`);
-  }
   upload(bucket, slug, filePath);
   return `https://${domain}/${slug}`;
 }

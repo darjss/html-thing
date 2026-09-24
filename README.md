@@ -1,8 +1,8 @@
 # html-thing
 
-One-command HTML hosting on Cloudflare R2. Upload an HTML file and get a public URL — by default on `https://html.darjs.dev/<slug>`.
+One-command file hosting on Cloudflare R2. Upload a file and get a public URL — by default on `https://html.darjs.dev/<slug>`.
 
-`html-thing` is a small CLI (and importable library) that wraps the Cloudflare R2 workflow into a single step: it makes sure the bucket exists, makes sure the custom domain is attached, picks a collision-free slug, uploads the file as `text/html`, and prints the URL.
+`html-thing` is a small CLI (and importable library) that wraps the Cloudflare R2 workflow into a single step: it makes sure the bucket exists, makes sure the custom domain is attached, picks a collision-free slug, uploads the file with a content type guessed from its extension, and prints the URL. HTML, PDFs, images, video, and text files are all served inline.
 
 ## Prerequisites
 
@@ -27,6 +27,9 @@ html-thing page.html
 html-thing page.html --name my-page
 # → https://html.darjs.dev/my-page
 
+html-thing report.pdf --name daalgavar-03
+# → https://html.darjs.dev/daalgavar-03 (served as application/pdf)
+
 html-thing page.html --bucket my-bucket --domain files.example.com
 # → https://files.example.com/<slug>
 ```
@@ -37,11 +40,13 @@ Run `html-thing --help` (or `-h`, or no arguments) for the built-in help.
 
 | Flag              | Default          | Description                                          |
 | ----------------- | ---------------- | ---------------------------------------------------- |
-| `--name <slug>`   | random 6-char    | Use a custom slug instead of a random one            |
+| `--name <slug>`   | random 6-char    | Custom slug; overwrites the existing object if taken |
 | `--bucket <name>` | `html-thing`     | R2 bucket name (created if missing, location `enam`) |
 | `--domain <host>` | `html.darjs.dev` | Custom domain attached to the bucket                 |
 
-Flags accept either `--flag value` or `--flag=value` form. Exactly one HTML file is expected as the positional argument.
+Flags accept either `--flag value` or `--flag=value` form. Exactly one file is expected as the positional argument.
+
+Reusing a `--name` replaces the file at that URL — the link stays stable and always serves the latest upload. Random slugs are still checked for collisions.
 
 ## How it works
 
@@ -49,8 +54,8 @@ For each upload, `html-thing` runs through these steps (all via the `wrangler` C
 
 1. **Ensure the bucket exists** — `wrangler r2 bucket info` is probed; if it fails, the bucket is created with `wrangler r2 bucket create --location=enam`.
 2. **Ensure the custom domain is attached** — `wrangler r2 bucket domain list` is checked; if the domain isn't listed, the parent zone ID is resolved via the Cloudflare REST API (`GET /zones?name=<parent>`) and the domain is attached with `wrangler r2 bucket domain add --zone-id=<id>`.
-3. **Pick a slug** — a random base62 slug (6 chars by default) is generated with `crypto.getRandomValues`; collisions are checked with `wrangler r2 object get --pipe --remote` (up to 10 retries). A custom `--name` slug is used as-is but still checked for collisions.
-4. **Upload** — `wrangler r2 object put` with `--content-type=text/html; charset=utf-8 --remote`.
+3. **Pick a slug** — a random base62 slug (6 chars by default) is generated with `crypto.getRandomValues`; collisions are checked with `wrangler r2 object get --pipe --remote` (up to 10 retries). A custom `--name` slug is used as-is and overwrites any existing object at that key.
+4. **Upload** — `wrangler r2 object put` with a content type derived from the file extension, `--remote`.
 5. **Print the URL** — `https://<domain>/<slug>`.
 
 ### API token resolution
